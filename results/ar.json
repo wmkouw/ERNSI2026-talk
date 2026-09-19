@@ -1,0 +1,27 @@
+{
+  "name": "ar",
+  "label": "AR",
+  "stage": 1,
+  "metrics": {
+    "rmse": 0.029984335135017744,
+    "mae": 0.00906552259807623,
+    "nlpd": -2.0815135838682353,
+    "coverage90": 0.9627057434544065,
+    "z_std": 1.0104754787571162,
+    "n": 57596
+  },
+  "hyper": {
+    "lam0": 0.01,
+    "a0": 0.01,
+    "b0": 1e-06,
+    "order": 4,
+    "_search": []
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/attach/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}

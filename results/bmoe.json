@@ -1,0 +1,32 @@
+{
+  "name": "bmoe",
+  "label": "Bayesian mixture",
+  "stage": 6,
+  "metrics": {
+    "rmse": 0.03134422001451792,
+    "mae": 0.008781420108198306,
+    "nlpd": -3.981995518187432,
+    "coverage90": 0.938676296965067,
+    "z_std": 0.9207218428986641,
+    "n": 57596
+  },
+  "hyper": {
+    "n_experts": 3,
+    "alpha_lo": 10000.0,
+    "alpha_hi": 1000000000.0,
+    "kappa": 1.0,
+    "omega": 0.0,
+    "vartheta": 10.0,
+    "c_off": 1.0,
+    "c_diag": 50.0,
+    "order": 4,
+    "_search": []
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/attach/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}

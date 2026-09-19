@@ -1,0 +1,71 @@
+{
+  "name": "hgf",
+  "label": "+ HGF noise",
+  "stage": 4,
+  "metrics": {
+    "rmse": 0.03459161603023143,
+    "mae": 0.009570761087694035,
+    "nlpd": -3.6197190218499906,
+    "coverage90": 0.8870754913535662,
+    "z_std": 1.258552446662829,
+    "n": 57596
+  },
+  "hyper": {
+    "kappa": 1.0,
+    "alpha_init": 1000000.0,
+    "lr": 4.0,
+    "half_life": 2000.0,
+    "order": 4,
+    "vartheta": 100.0,
+    "omega": 0.0,
+    "_search": [
+      {
+        "vartheta": 10.0,
+        "omega": 0.0,
+        "mean_logpdf": 2.3063334059218823
+      },
+      {
+        "vartheta": 10.0,
+        "omega": 4.0,
+        "mean_logpdf": 2.2967575355928136
+      },
+      {
+        "vartheta": 100.0,
+        "omega": 0.0,
+        "mean_logpdf": 3.2779400935939567
+      },
+      {
+        "vartheta": 100.0,
+        "omega": 4.0,
+        "mean_logpdf": 3.277910670872803
+      },
+      {
+        "vartheta": 1000.0,
+        "omega": 0.0,
+        "mean_logpdf": 2.7487430983380965
+      },
+      {
+        "vartheta": 1000.0,
+        "omega": 4.0,
+        "mean_logpdf": 2.7487525613025516
+      },
+      {
+        "vartheta": 10000.0,
+        "omega": 0.0,
+        "mean_logpdf": 2.626626439721548
+      },
+      {
+        "vartheta": 10000.0,
+        "omega": 4.0,
+        "mean_logpdf": 2.6273840916977953
+      }
+    ]
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/attach/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}

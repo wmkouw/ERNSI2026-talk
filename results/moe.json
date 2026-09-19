@@ -1,0 +1,43 @@
+{
+  "name": "moe",
+  "label": "mixture",
+  "stage": 5,
+  "metrics": {
+    "rmse": 0.03008480482274338,
+    "mae": 0.00905572775215647,
+    "nlpd": -3.8742944058414586,
+    "coverage90": 0.9385026737967914,
+    "z_std": 0.9584446178814621,
+    "n": 57596
+  },
+  "hyper": {
+    "n_experts": 3,
+    "alpha_lo": 10000.0,
+    "alpha_hi": 1000000000.0,
+    "kappa": 1.0,
+    "omega": 0.0,
+    "order": 4,
+    "vartheta": 10.0,
+    "_search": [
+      {
+        "vartheta": 10.0,
+        "mean_logpdf": 3.637397890550379
+      },
+      {
+        "vartheta": 100.0,
+        "mean_logpdf": 3.361378309858747
+      },
+      {
+        "vartheta": 1000.0,
+        "mean_logpdf": 3.28912287622741
+      }
+    ]
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/attach/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}

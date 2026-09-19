@@ -1,0 +1,45 @@
+{
+  "name": "htvar",
+  "label": "hier. TVAR",
+  "stage": 3,
+  "metrics": {
+    "rmse": 0.05017689689300915,
+    "mae": 0.01209847427958717,
+    "nlpd": -2.7836114595562442,
+    "coverage90": 0.9283109938190152,
+    "z_std": 1.419125889762693,
+    "n": 57596
+  },
+  "hyper": {
+    "alpha_init": 1000000.0,
+    "a0": 0.01,
+    "b0": 1e-06,
+    "order": 4,
+    "lr": 16.0,
+    "half_life": 2000.0,
+    "_search": [
+      {
+        "lr": 1.0,
+        "half_life": 2000.0,
+        "mean_logpdf": 1.5215476877848861
+      },
+      {
+        "lr": 4.0,
+        "half_life": 2000.0,
+        "mean_logpdf": 1.521534055325458
+      },
+      {
+        "lr": 16.0,
+        "half_life": 2000.0,
+        "mean_logpdf": 1.7836959487819035
+      }
+    ]
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/attach/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}
