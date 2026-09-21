@@ -7,16 +7,19 @@ transition of its own, and the transition gets a Dirichlet prior:
     s_t | s_{t-1} = i  ~  Cat(A_i)
     A_i                ~  Dir(c_i)
 
-This is the same move the talk already made twice: something that was
-clamped is given a prior and inferred. Here it buys persistence. A bridge
-that froze on Thursday morning is still frozen on Thursday afternoon, and a
-switch with a learned transition keeps that belief, while the static mixture
-of stage 5 has to rediscover the regime at every sample.
+The bank is the one stage 5 introduced: the stage-4 block and a Matern-1/2
+state-space GP. Nothing about the branches changes here, only the switch.
+
+This is the same move the talk already made twice: something that was clamped
+is given a prior and inferred. Here it buys persistence. A bridge that froze
+on Thursday morning is still frozen on Thursday afternoon, and a switch with
+a learned transition keeps that belief, while the static mixture of stage 5
+has to rediscover the regime at every sample.
 
 Inference is the forward pass of the switch combined with the branch
-predictives. The transition counts are accumulated from the expected
-pairwise occupancies, the usual online variational update for a Dirichlet
-over the rows of A.
+predictives. The transition counts are accumulated from the expected pairwise
+occupancies, the usual online variational update for a Dirichlet over the
+rows of A.
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import logsumexp
 
-from ..mixture import MixtureBase, default_bank
+from ..mixture import MixtureBase, paired_bank
 
 
 class BayesianMixtureOfExperts(MixtureBase):
@@ -32,12 +35,20 @@ class BayesianMixtureOfExperts(MixtureBase):
     name = "bmoe"
     label = "Bayesian mixture"
 
-    def __init__(self, order: int = 4, n_experts: int = 3, omega: float = 0.0,
-                 vartheta: float = 1e3, alpha_lo: float = 1e2, alpha_hi: float = 1e8,
-                 kappa: float = 1.0, c_off: float = 1.0, c_diag: float = 50.0,
-                 count_scale: float = 1.0):
-        super().__init__(default_bank(order, n_experts, omega, vartheta,
-                                      alpha_lo, alpha_hi, kappa))
+    def __init__(self, order: int = 4, omega: float = 0.0,
+                 vartheta: float = 1e3, kappa: float = 1.0,
+                 gp_length: float = 4.0, gp_snr: float = 4.0,
+                 alpha_init: float = 1e6, lr: float = 4.0,
+                 half_life: float = 2000.0, resp_floor: float = 0.2,
+                 c_off: float = 1.0, c_diag: float = 50.0,
+                 count_scale: float = 1.0, experts=None):
+        # `experts` lets a subclass supply its own bank; everything about the
+        # switch below is then identical, which is what makes a run with a
+        # different bank a controlled comparison.
+        super().__init__(experts if experts is not None else
+                         paired_bank(order, omega, vartheta, gp_length,
+                                     gp_snr, kappa, lr, half_life,
+                                     alpha_init), resp_floor=resp_floor)
         K = self.K
         # Dirichlet counts, one row per originating state. The diagonal boost
         # is a mild prior belief that regimes persist; the data overwhelms it
@@ -64,7 +75,15 @@ class BayesianMixtureOfExperts(MixtureBase):
                   + loglik[None, :])
         xi = np.exp(log_xi - logsumexp(log_xi))
         self.counts += self.count_scale * xi
-        self.belief = resp
+        # The belief carried into the next step is floored like every other
+        # responsibility that is reused rather than reported. A switch that is
+        # allowed to commit completely will: the learned transition saturates
+        # near 0.99 persistence, the predictive weight on the branch that
+        # turns out to be right drops to a percent, and one sample costs five
+        # nats. Flooring here bounds that cost and is the same rule the
+        # branches learn under, not a separate knob.
+        w = np.maximum(resp, self.resp_floor)
+        self.belief = w / w.sum()
 
     def diagnostics(self):
         d = super().diagnostics()

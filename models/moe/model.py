@@ -1,27 +1,35 @@
 """
 Stage 5 --- mixture of experts.
 
-The whole of stage 4 becomes a block M_k and is instantiated K times, each
-copy with its own clamped drift precision alpha_k. A selector node picks
-which block explains y_t:
+The whole of stage 4 becomes a block and is placed behind a selector node
+next to a second block that describes the bridge differently. A Matern-1/2
+Gaussian process in state-space form is that second block:
 
+    M_1:  theta_t ~ N(theta_{t-1}, alpha^-1 I),  y_t ~ N(theta_t' x_t, gamma_t^-1)
+    M_2:  f_t     ~ N(a f_{t-1}, q),             y_t ~ N(f_t, r gamma_t)
     s_t   ~ Cat(pi),   pi clamped to the uniform simplex
-    y_t   ~ N(theta_t^(s_t)' x_t, gamma_t^(s_t)^-1)
+
+The two branches are different models, not one model at two settings. One
+says the deck is a resonant structure whose parameters drift, the other says
+it is a smooth process with a correlation time and nothing more. The second
+is a bad model of a vibrating deck on purpose: it is first order and
+non-oscillatory, so it catches what the autoregression cannot, namely a truck
+impulse or the first samples of a regime the coefficients have not reached.
 
 The mixing weights are fixed, so the switch has no memory: each sample the
 responsibilities are recomputed from the branch predictives alone. Each
 branch then absorbs the observation with its likelihood tempered by its own
 responsibility, which is the ordinary variational rule for a mixture node.
 
-This is the composability payoff: no new inference rules are needed, the
-block from the previous slide is simply used as a node.
+This is the composability payoff: no new inference rules are needed, two
+blocks from earlier slides are simply used as nodes.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-from ..mixture import MixtureBase, default_bank
+from ..mixture import MixtureBase, paired_bank
 
 
 class MixtureOfExperts(MixtureBase):
@@ -29,11 +37,14 @@ class MixtureOfExperts(MixtureBase):
     name = "moe"
     label = "mixture"
 
-    def __init__(self, order: int = 4, n_experts: int = 3, omega: float = 0.0,
-                 vartheta: float = 1e3, alpha_lo: float = 1e2, alpha_hi: float = 1e8,
-                 kappa: float = 1.0):
-        super().__init__(default_bank(order, n_experts, omega, vartheta,
-                                      alpha_lo, alpha_hi, kappa))
+    def __init__(self, order: int = 4, omega: float = 0.0,
+                 vartheta: float = 1e3, kappa: float = 1.0,
+                 gp_length: float = 4.0, gp_snr: float = 4.0,
+                 alpha_init: float = 1e6, lr: float = 4.0,
+                 half_life: float = 2000.0, resp_floor: float = 0.2):
+        super().__init__(paired_bank(order, omega, vartheta, gp_length,
+                                     gp_snr, kappa, lr, half_life,
+                                     alpha_init), resp_floor=resp_floor)
         self._uniform = np.full(self.K, -np.log(self.K))
 
     def log_prior_weights(self) -> np.ndarray:

@@ -7,16 +7,23 @@ Network on System Identification 2026.
   regime-switching system. `data/sim_001.csv` is one five-day scenario at
   20 Hz, with the simulator's ground truth alongside the measurement.
 - `models/` --- the six models from the keynote's factor graphs, fitted to
-  that trace. See `models/README.md` for the protocol, the results and the
-  three places where the textbook update does not work.
+  that trace, plus a Transformer baseline to compare them against. See
+  `models/README.md` for the protocol, the results and the three places where
+  the textbook update does not work.
 - `results/` --- one-step-ahead forecasts, metrics and settings per model,
   plus `summary.csv`.
-- `results_notebook.py` --- a marimo notebook that draws the figures. Open it
-  with `marimo edit results_notebook.py` to change the plotting code live, or
-  run `python results_notebook.py` to regenerate the slide PDFs in
-  `../figures/`.
+- `bridge_demo.py` --- one marimo notebook for the whole talk, in two parts.
+  Part one is the animated problem statement: a week of the scenario played
+  back, with a switch that reveals the hidden truth. Part two draws the slide
+  figures from the stored predictions, then imports the models themselves, so
+  you can point one at any stretch of the trace and see the signal against its
+  forecast at full rate, with a checkbox to run all six over the same window.
+  Open it with `marimo edit bridge_demo.py` to change the plotting code live,
+  or run `python bridge_demo.py` to regenerate the slide PDFs in `../figures/`.
 
 ```
-python -m models.run_all      # fit all six, write results/
-python results_notebook.py    # redraw ../figures/res_*.pdf
+python -m models.run_all                        # fit all six, write results/
+python -m models.transformer.run --nightly      # the baseline (needs torch)
+python -m models.decision                       # the closing decision slide
+python bridge_demo.py                           # redraw ../figures/res_*.pdf
 ```

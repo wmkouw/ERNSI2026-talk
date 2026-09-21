@@ -413,11 +413,30 @@ STAGES = [
     ("bmoe",  6, "Bayesian mixture"),
 ]
 
+# Not rungs of the ladder: outside comparisons, scored the same way and
+# listed after it. Kept separate so the per-stage slide figures keep their
+# six slots whether or not a baseline has been run.
+BASELINES = [
+    ("matern",              7, "Matern-1/2 GP"),
+    ("transformer",         8, "Transformer"),
+    ("transformer_nightly", 9, "Transformer (nightly)"),
+]
+
+
+def all_entries():
+    return STAGES + BASELINES
+
+
+def _csv(v) -> str:
+    """One CSV field. Labels can contain commas, so quote when they do."""
+    t = f"{v:.6g}" if isinstance(v, float) else str(v)
+    return '"' + t.replace('"', '""') + '"' if ("," in t or '"' in t) else t
+
 
 def write_summary(results_dir: str = RESULTS) -> str:
     """Collect every model's metrics into one CSV, ordered by stage."""
     rows = []
-    for name, stage, label in STAGES:
+    for name, stage, label in all_entries():
         p = os.path.join(results_dir, f"{name}.json")
         if not os.path.exists(p):
             continue
@@ -431,8 +450,7 @@ def write_summary(results_dir: str = RESULTS) -> str:
     with open(path, "w") as fh:
         fh.write(",".join(cols) + "\n")
         for r in rows:
-            fh.write(",".join(
-                f"{r[c]:.6g}" if isinstance(r[c], float) else str(r[c]) for c in cols) + "\n")
+            fh.write(",".join(_csv(r[c]) for c in cols) + "\n")
     return path
 
 

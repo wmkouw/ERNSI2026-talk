@@ -1,28 +1,124 @@
 import marimo
 
-__generated_with = "0.16.0"
-app = marimo.App(width="medium")
+__generated_with = "0.24.2"
+app = marimo.App(width="full")
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _():
     import marimo as mo
 
-    mo.md(
-        """
-        # ERNSI 2026 --- forecasting results
+    import bridge as br
+    import bridge_viz as bv
 
-        One-step-ahead forecasts from the six models in `models/`, on the bridge
-        trace in `data/`. Every model predicted each sample before it saw it, on
-        the same window, with hyperparameters chosen on day one only.
+    return br, bv, mo
 
-        The plotting code below is meant to be edited. Change `STYLE`, change a
-        `*_figure` function, and every panel re-renders. Running this file as a
-        script (`python results_notebook.py`) writes the slide PDFs into
-        `../figures/`.
-        """
-    )
-    return (mo,)
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    # One bridge, one sensor, many causes
+
+    A 30 m road bridge carries a single accelerometer. Its signal never sits still:
+    **rush hour** and a **storm** make it loud, a **frozen deck** makes it stiffer,
+    and at some point this week something in the structure **breaks**.
+    Traffic and wind are only partly measured; the bridge's own condition not at all.
+
+    *From the sensor alone: what changed — the load, the weather, or the bridge?*
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    speed = mo.ui.dropdown({"slow": 180, "normal": 110, "fast": 60}, value="normal",
+                           label="playback")
+    fph = mo.ui.dropdown({"2 per hour": 2, "3 per hour": 3, "4 per hour": 4},
+                         value="3 per hour", label="frames")
+    seed = mo.ui.number(start=0, stop=999, step=1, value=0, label="seed")
+    reveal = mo.ui.switch(value=False, label="reveal hidden truth")
+    mo.hstack([speed, fph, seed, reveal], justify="start", gap=2)
+    return fph, reveal, seed, speed
+
+
+@app.cell
+def _(br, seed):
+    sim = br.simulate(seed=int(seed.value))
+    return (sim,)
+
+
+@app.cell
+def _(bv, fph, reveal, sim, speed):
+    problem_fig = bv.problem_animation(sim, frames_per_hour=fph.value,
+                                       frame_ms=speed.value, show_hidden=reveal.value)
+    problem_fig
+    return (problem_fig,)
+
+
+@app.cell
+def _(mo):
+    save = mo.ui.run_button(label="Save standalone HTML (offline backup)")
+    save
+    return (save,)
+
+
+@app.cell
+def _(bv, mo, problem_fig, save):
+    mo.stop(not save.value)
+    _path = bv.save_html(problem_fig, str(mo.notebook_dir() / "bridge_problem.html"))
+    mo.md(f"Saved `{_path}`: opens in any browser, no internet needed.")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    **Reading the animation.** Time-lapse: one scenario hour is 30 s of 20 Hz
+    vibration, so the full week is one hour of data (72 000 samples). The scene
+    shows the inputs (traffic density, wind, deck temperature); top right is what
+    the accelerometer records: the last 10 s, and its spectrum over the last 60 s
+    against the reference modes. The strips below trace the week; the future is
+    greyed out.
+    """)
+    return
+
+
+@app.cell
+def _(bv, mo, sim):
+    mo.accordion({
+        "Behind the scenes (spoilers)": mo.vstack([
+            mo.md(
+                r"""
+                The natural frequencies drift ~0.3 %/°C with deck temperature, jump
+                ~+10 % while the deck is frozen (Wednesday night to Thursday morning,
+                briefly again on Friday morning), and drop ~6 % after damage on
+                Friday at 13:00. Switch on *reveal hidden truth* to see the true
+                modes in the spectrum and the true first frequency in the strips.
+                """
+            ),
+            bv.week_overview(sim),
+        ])
+    })
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ---
+
+    # Part two --- does the model forecast?
+
+    One-step-ahead forecasts from the six models in `models/`, on the same
+    bridge trace the animation above plays back. Every model predicted each
+    sample before it saw it, on the same window, with hyperparameters chosen on
+    day one only.
+
+    The plotting code below is meant to be edited. Change `STYLE`, change a
+    `*_figure` function, and every panel re-renders. Running this file as a
+    script (`python bridge_demo.py`) writes the slide PDFs into `../figures/`.
+    """)
+    return
 
 
 @app.cell
@@ -421,6 +517,69 @@ def _(AVAILABLE, HAVE_BASE, LADDER, RES, STYLE, np, plt, tidy):
 
 
 @app.cell
+def _(RESULTS, STYLE, json, np, os, plt, tidy):
+    def decision_figure(style=STYLE):
+        """The question from slide two, answered with a margin.
+
+        One bar per model per hour: solid up to the predicted mean, faint out to
+        mean plus one standard deviation, with the serviceability limit as a
+        dashed line and what the deck actually did as a tick. Read left to
+        right, the faint part is the price of not knowing.
+        """
+        path = os.path.join(RESULTS, "decision.json")
+        if not os.path.exists(path):
+            return None
+        with open(path) as fh:
+            D = json.load(fh)
+        T = D["threshold_mm"]
+        # Two rows, not three: the slide contrasts the first rung with the
+        # last, and the middle one only crowds the panel.
+        rows = [("ar", "AR", style["stage"][0]),
+                ("bmoe", "Bayes. mixture", style["stage"][5])]
+        panels = [(f"{D['hour']:g}", "Friday 18:00, evening peak"),
+                  (f"{D['quiet_hour']:g}", "Friday 20:00, traffic gone")]
+
+        fig, axes = plt.subplots(1, 2, figsize=(style["figsize"][0], 1.85),
+                                 sharex=True, gridspec_kw=dict(wspace=0.10))
+        for ax, (key, title) in zip(axes, panels):
+            ys = np.arange(len(rows))[::-1]
+            for yy, (name, lab, col) in zip(ys, rows):
+                r = D["models"][name][key]
+                ax.barh(yy, r["mu_mm"], color=col, height=0.55, zorder=3)
+                ax.barh(yy, r["sigma_mm"], left=r["mu_mm"], color=col,
+                        alpha=0.30, height=0.55, zorder=3)
+                ax.annotate(f"{r['margin_mm']:.0f}", (r["margin_mm"], yy),
+                            xytext=(4, 0), textcoords="offset points",
+                            va="center", fontsize=style["fs"] - 1.5,
+                            color=style["ink"])
+            ax.axvline(T, color=style["ink"], lw=0.9, ls=(0, (3, 2)), zorder=4)
+            real = D["realised"][key]["rms_mm"]
+            ax.axvline(real, color=style["muted"], lw=0.9, zorder=2)
+            ax.annotate(f"deck did {real:.0f}", (real, len(rows) - 0.35),
+                        xytext=(3, 0), textcoords="offset points",
+                        fontsize=style["fs"] - 2, color=style["muted"])
+            ax.set_yticks(ys)
+            ax.set_yticklabels([lab for _, lab, _ in rows] if ax is axes[0] else [])
+            ax.set_ylim(-0.6, len(rows) - 0.05)
+            ax.set_xlim(0, T * 1.30)
+            ax.set_xlabel(r"r.m.s. deck acceleration  [mm/s$^2$]")
+            ax.annotate(f"limit {T:.0f}", (T, len(rows) - 0.35), xytext=(4, 0),
+                        textcoords="offset points",
+                        fontsize=style["fs"] - 2, color=style["ink"])
+            ax.set_title(title, loc="left", color=style["muted"])
+            tidy(ax, grid_axis="x")
+        return fig
+    return (decision_figure,)
+
+
+@app.cell
+def _(decision_figure):
+    decision_figure()
+    return
+
+
+
+@app.cell
 def _(RES, STYLE, np, plt, tidy):
     def trace_figure(name, hour_from=95.0, hour_to=98.0, style=STYLE):
         """A zoom on the forecast and its band, for a chosen stretch."""
@@ -462,21 +621,19 @@ def _(RES, STYLE, np, plt, tidy):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        ## Live: run a model on a stretch of the signal
+    mo.md(r"""
+    ## Live: run a model on a stretch of the signal
 
-        The cells below import the models themselves rather than reading the
-        stored predictions, so you can point one at any window and look at the
-        signal against its forecast at full rate. Hyperparameters come from
-        `results/<stage>.json`, so a live run matches the stored one.
+    The cells below import the models themselves rather than reading the stored
+    predictions, so you can point one at any window and look at the signal
+    against its forecast at full rate. Hyperparameters come from
+    `results/<stage>.json`, so a live run matches the stored one.
 
-        The filter is warmed up for `warmup` hours before the window, not from
-        the start of the trace, so this is a preview rather than the scored
-        run. A couple of hours is plenty for everything except the drift
-        precision in stages 3 and 4, which takes longer to settle.
-        """
-    )
+    The filter is warmed up for `warmup` hours before the window, not from the
+    start of the trace, so this is a preview rather than the scored run. A
+    couple of hours is plenty for everything except the drift precision in
+    stages 3 and 4, which takes longer to settle.
+    """)
     return
 
 
@@ -712,8 +869,8 @@ def _(RES, AVAILABLE, mo):
 
 
 @app.cell
-def _(AVAILABLE, FIGURES, gp_figure, ladder_figure, os, plt, stage_figure,
-      transformer_figure, volatility_figure):
+def _(AVAILABLE, FIGURES, decision_figure, gp_figure, ladder_figure, os, plt,
+      stage_figure, transformer_figure, volatility_figure):
     def export(figdir=FIGURES):
         """Write the slide PDFs. Also runs when this file is executed directly."""
         os.makedirs(figdir, exist_ok=True)
@@ -730,7 +887,8 @@ def _(AVAILABLE, FIGURES, gp_figure, ladder_figure, os, plt, stage_figure,
         plt.close(_f)
         written.append(_p)
         for _name, _fn in (("res_transformer", transformer_figure),
-                           ("res_gp", gp_figure)):
+                           ("res_gp", gp_figure),
+                           ("res_decision", decision_figure)):
             _f = _fn()
             if _f is not None:
                 _p = os.path.join(figdir, f"{_name}.pdf")

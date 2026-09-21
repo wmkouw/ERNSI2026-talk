@@ -1,0 +1,42 @@
+{
+  "name": "transformer",
+  "label": "Transformer",
+  "stage": 8,
+  "metrics": {
+    "rmse": 0.057151001086785655,
+    "mae": 0.017634394790309958,
+    "nlpd": -3.1085293940254237,
+    "coverage90": 0.8654767692200848,
+    "z_std": 1.2573649343958861,
+    "n": 57596
+  },
+  "hyper": {
+    "variant": "trained once on day one",
+    "context": 96,
+    "d_model": 48,
+    "n_heads": 4,
+    "n_layers": 2,
+    "d_ff": 96,
+    "dropout": 0.1,
+    "sigma_floor": 1e-06,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "batch": 256,
+    "epochs": 30,
+    "patience": 5,
+    "val_frac": 0.1,
+    "train_stride": 2,
+    "val_blocks": 5,
+    "grad_clip": 1.0,
+    "seed": 0,
+    "n_parameters": 42818,
+    "best_val_nll": 0.7152962684631348
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/user-data/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}

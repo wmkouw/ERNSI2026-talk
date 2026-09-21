@@ -183,6 +183,69 @@ class NoisePrecision:
 
 
 # --------------------------------------------------------------------------- #
+# f: a Matern-1/2 Gaussian process, as a state-space model
+# --------------------------------------------------------------------------- #
+
+class MaternHalf:
+    """A Matern-1/2 GP, which is an AR(1) once you write it down properly.
+
+        k(tau) = sigma^2 exp(-|tau| / ell)
+
+    is the covariance of an Ornstein-Uhlenbeck process,
+
+        df(t) = -(1/ell) f(t) dt + dW(t),
+
+    and sampling that at a fixed step dt gives exactly
+
+        f_t = a f_{t-1} + w_t,   a = exp(-dt/ell),  Var(w_t) = sigma^2 (1 - a^2).
+
+    So the kernel and the recursion are two views of one object. Inference is
+    the Kalman filter and it is exact: no inducing points, no Cholesky of an
+    n-by-n matrix, no O(n^3). On a factor graph it is one more chain, drawn
+    like every other chain in this talk, and the only thing that distinguishes
+    it from the coefficient chain is that `a` is less than one, so it forgets
+    rather than wanders.
+
+    `length` is in samples. The random walk of the other chains is the limit
+    ell to infinity, where a goes to 1 and the stationary variance diverges.
+    """
+
+    def __init__(self, length: float, m0: float = 0.0, p0: float = 1.0):
+        self.length = float(length)
+        self.a = float(np.exp(-1.0 / max(self.length, 1e-9)))
+        self.m = float(m0)
+        self.P = float(p0)
+        self._mm: Optional[float] = None
+        self._Pm: Optional[float] = None
+
+    def predict(self, stationary_var: float) -> Tuple[float, float]:
+        """Push f through the transition; returns (m^-, P^-).
+
+        `stationary_var` is sigma^2, the marginal variance of the GP. It is
+        passed in per step rather than fixed at construction because on this
+        signal the amplitude moves by three orders of magnitude, so the scale
+        comes from the volatility chain above.
+        """
+        q = max(stationary_var, 0.0) * (1.0 - self.a ** 2)
+        self._mm = self.a * self.m
+        self._Pm = self.a ** 2 * self.P + q
+        return self._mm, self._Pm
+
+    def update(self, y: float, obs_var: float, weight: float = 1.0) -> float:
+        """Absorb y with observation variance `obs_var`, tempered by `weight`.
+
+        Returns E[(y - f)^2] under the posterior, for the node upstairs.
+        """
+        w = max(float(weight), 1e-12)
+        s = self._Pm + obs_var / w
+        k = self._Pm / s
+        self.m = self._mm + k * (y - self._mm)
+        self.P = self._Pm - k * self._Pm
+        r = y - self.m
+        return r * r + self.P
+
+
+# --------------------------------------------------------------------------- #
 # z: the hierarchical Gaussian filter on log observation precision
 # --------------------------------------------------------------------------- #
 

@@ -1,0 +1,180 @@
+{
+  "name": "matern",
+  "label": "Matern-1/2 GP",
+  "stage": 7,
+  "metrics": {
+    "rmse": 0.08836246828172385,
+    "mae": 0.03247777650039346,
+    "nlpd": -2.7523305927653117,
+    "coverage90": 0.9039690256267796,
+    "z_std": 1.1166296780179987,
+    "n": 57596
+  },
+  "hyper": {
+    "omega": 0.0,
+    "vartheta": 100.0,
+    "kappa": 1.0,
+    "order": 4,
+    "length": 2.0,
+    "snr": 256.0,
+    "_search": [
+      {
+        "length": 1.0,
+        "snr": 0.25,
+        "mean_logpdf": 2.0258256733496864
+      },
+      {
+        "length": 1.0,
+        "snr": 1.0,
+        "mean_logpdf": 2.0961824866422076
+      },
+      {
+        "length": 1.0,
+        "snr": 4.0,
+        "mean_logpdf": 2.1637488764812507
+      },
+      {
+        "length": 1.0,
+        "snr": 16.0,
+        "mean_logpdf": 2.195460446032649
+      },
+      {
+        "length": 1.0,
+        "snr": 64.0,
+        "mean_logpdf": 2.2053284738074104
+      },
+      {
+        "length": 1.0,
+        "snr": 256.0,
+        "mean_logpdf": 2.2079521056711418
+      },
+      {
+        "length": 2.0,
+        "snr": 0.25,
+        "mean_logpdf": 2.03429283106956
+      },
+      {
+        "length": 2.0,
+        "snr": 1.0,
+        "mean_logpdf": 2.1204339468946345
+      },
+      {
+        "length": 2.0,
+        "snr": 4.0,
+        "mean_logpdf": 2.207438972348614
+      },
+      {
+        "length": 2.0,
+        "snr": 16.0,
+        "mean_logpdf": 2.2509557433500347
+      },
+      {
+        "length": 2.0,
+        "snr": 64.0,
+        "mean_logpdf": 2.265215152310615
+      },
+      {
+        "length": 2.0,
+        "snr": 256.0,
+        "mean_logpdf": 2.2690901349041614
+      },
+      {
+        "length": 4.0,
+        "snr": 0.25,
+        "mean_logpdf": 2.011061067759942
+      },
+      {
+        "length": 4.0,
+        "snr": 1.0,
+        "mean_logpdf": 2.081285689314355
+      },
+      {
+        "length": 4.0,
+        "snr": 4.0,
+        "mean_logpdf": 2.1732340848949003
+      },
+      {
+        "length": 4.0,
+        "snr": 16.0,
+        "mean_logpdf": 2.2287864341780876
+      },
+      {
+        "length": 4.0,
+        "snr": 64.0,
+        "mean_logpdf": 2.249606683169035
+      },
+      {
+        "length": 4.0,
+        "snr": 256.0,
+        "mean_logpdf": 2.255744600001334
+      },
+      {
+        "length": 8.0,
+        "snr": 0.25,
+        "mean_logpdf": 1.9831596864814538
+      },
+      {
+        "length": 8.0,
+        "snr": 1.0,
+        "mean_logpdf": 2.0244033569097106
+      },
+      {
+        "length": 8.0,
+        "snr": 4.0,
+        "mean_logpdf": 2.1090025980918603
+      },
+      {
+        "length": 8.0,
+        "snr": 16.0,
+        "mean_logpdf": 2.181435382739743
+      },
+      {
+        "length": 8.0,
+        "snr": 64.0,
+        "mean_logpdf": 2.214136860783584
+      },
+      {
+        "length": 8.0,
+        "snr": 256.0,
+        "mean_logpdf": 2.224921201085512
+      },
+      {
+        "length": 20.0,
+        "snr": 0.25,
+        "mean_logpdf": 1.9628067450992863
+      },
+      {
+        "length": 20.0,
+        "snr": 1.0,
+        "mean_logpdf": 1.9733515439924314
+      },
+      {
+        "length": 20.0,
+        "snr": 4.0,
+        "mean_logpdf": 2.02801489464601
+      },
+      {
+        "length": 20.0,
+        "snr": 16.0,
+        "mean_logpdf": 2.1133446554546707
+      },
+      {
+        "length": 20.0,
+        "snr": 64.0,
+        "mean_logpdf": 2.170021087422486
+      },
+      {
+        "length": 20.0,
+        "snr": 256.0,
+        "mean_logpdf": 2.1926697231364467
+      }
+    ]
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/attach/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}

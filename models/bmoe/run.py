@@ -5,17 +5,23 @@ from ..runner import run_stage
 from ..moe.run import BANK
 from .model import build
 
-def main(protocol=None):
-    # Stage 6 reuses stage 5's chosen volatility so the only difference
-    # between the two results is the switch. If stage 5 has not been run,
-    # fall back to the middle of its grid.
-    vartheta = 1e2
+# What stage 5 settled on, so the only difference between the two results is
+# the switch. If stage 5 has not been run, fall back to the middle of its grid.
+FALLBACK = dict(vartheta=1e1, gp_length=2.0, gp_snr=64.0, resp_floor=0.2)
+
+
+def inherited():
     p = os.path.join(RESULTS, "moe.json")
-    if os.path.exists(p):
-        with open(p) as fh:
-            vartheta = json.load(fh)["hyper"].get("vartheta", vartheta)
+    if not os.path.exists(p):
+        return dict(FALLBACK)
+    with open(p) as fh:
+        h = json.load(fh)["hyper"]
+    return {k: h.get(k, v) for k, v in FALLBACK.items()}
+
+
+def main(protocol=None):
     return run_stage("bmoe", "Bayesian mixture", 6, build, grid=None,
-                     fixed=dict(BANK, vartheta=vartheta, c_off=1.0, c_diag=50.0),
+                     fixed=dict(BANK, c_off=1.0, c_diag=50.0, **inherited()),
                      protocol=protocol or Protocol())
 
 if __name__ == "__main__":

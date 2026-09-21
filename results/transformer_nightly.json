@@ -1,0 +1,41 @@
+{
+  "name": "transformer_nightly",
+  "label": "Transformer (nightly)",
+  "stage": 9,
+  "metrics": {
+    "rmse": 0.05002572597428153,
+    "mae": 0.014660970700079587,
+    "nlpd": -3.355209055704305,
+    "coverage90": 0.908934648239461,
+    "z_std": 1.0973583108481495,
+    "n": 57596
+  },
+  "hyper": {
+    "variant": "warm-started refit at the end of every day",
+    "context": 96,
+    "d_model": 48,
+    "n_heads": 4,
+    "n_layers": 2,
+    "d_ff": 96,
+    "dropout": 0.1,
+    "sigma_floor": 1e-06,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "batch": 256,
+    "epochs": 30,
+    "patience": 5,
+    "val_frac": 0.1,
+    "train_stride": 2,
+    "val_blocks": 5,
+    "grad_clip": 1.0,
+    "seed": 0,
+    "n_parameters": 42818
+  },
+  "protocol": {
+    "order": 4,
+    "tune_end": 14400,
+    "eval_start": 14400,
+    "trace": "/mnt/user-data/outputs/ERNSI2026-talk/data/sim_001.csv",
+    "column": "acc"
+  }
+}
