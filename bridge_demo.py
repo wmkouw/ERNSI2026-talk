@@ -516,61 +516,6 @@ def _(AVAILABLE, HAVE_BASE, LADDER, RES, STYLE, np, plt, tidy):
     return gp_figure, transformer_figure
 
 
-@app.cell
-def _(RESULTS, STYLE, json, np, os, plt, tidy):
-    def decision_figure(style=STYLE):
-        """The question from slide two, answered with a margin.
-
-        One bar per model per hour: solid up to the predicted mean, faint out to
-        mean plus one standard deviation, with the serviceability limit as a
-        dashed line and what the deck actually did as a tick. Read left to
-        right, the faint part is the price of not knowing.
-        """
-        path = os.path.join(RESULTS, "decision.json")
-        if not os.path.exists(path):
-            return None
-        with open(path) as fh:
-            D = json.load(fh)
-        T = D["threshold_mm"]
-        # Two rows, not three: the slide contrasts the first rung with the
-        # last, and the middle one only crowds the panel.
-        rows = [("ar", "AR", style["stage"][0]),
-                ("bmoe", "Bayes. mixture", style["stage"][5])]
-        panels = [(f"{D['hour']:g}", "Friday 18:00, evening peak"),
-                  (f"{D['quiet_hour']:g}", "Friday 20:00, traffic gone")]
-
-        fig, axes = plt.subplots(1, 2, figsize=(style["figsize"][0], 1.85),
-                                 sharex=True, gridspec_kw=dict(wspace=0.10))
-        for ax, (key, title) in zip(axes, panels):
-            ys = np.arange(len(rows))[::-1]
-            for yy, (name, lab, col) in zip(ys, rows):
-                r = D["models"][name][key]
-                ax.barh(yy, r["mu_mm"], color=col, height=0.55, zorder=3)
-                ax.barh(yy, r["sigma_mm"], left=r["mu_mm"], color=col,
-                        alpha=0.30, height=0.55, zorder=3)
-                ax.annotate(f"{r['margin_mm']:.0f}", (r["margin_mm"], yy),
-                            xytext=(4, 0), textcoords="offset points",
-                            va="center", fontsize=style["fs"] - 1.5,
-                            color=style["ink"])
-            ax.axvline(T, color=style["ink"], lw=0.9, ls=(0, (3, 2)), zorder=4)
-            real = D["realised"][key]["rms_mm"]
-            ax.axvline(real, color=style["muted"], lw=0.9, zorder=2)
-            ax.annotate(f"deck did {real:.0f}", (real, len(rows) - 0.35),
-                        xytext=(3, 0), textcoords="offset points",
-                        fontsize=style["fs"] - 2, color=style["muted"])
-            ax.set_yticks(ys)
-            ax.set_yticklabels([lab for _, lab, _ in rows] if ax is axes[0] else [])
-            ax.set_ylim(-0.6, len(rows) - 0.05)
-            ax.set_xlim(0, T * 1.30)
-            ax.set_xlabel(r"r.m.s. deck acceleration  [mm/s$^2$]")
-            ax.annotate(f"limit {T:.0f}", (T, len(rows) - 0.35), xytext=(4, 0),
-                        textcoords="offset points",
-                        fontsize=style["fs"] - 2, color=style["ink"])
-            ax.set_title(title, loc="left", color=style["muted"])
-            tidy(ax, grid_axis="x")
-        return fig
-    return (decision_figure,)
-
 
 @app.cell
 def _(HERE, STYLE, np, os, plt, tidy):
@@ -644,13 +589,6 @@ def _(HERE, STYLE, np, os, plt, tidy):
 @app.cell
 def _(bridge_figure):
     bridge_figure()
-    return
-
-
-
-@app.cell
-def _(decision_figure):
-    decision_figure()
     return
 
 
@@ -889,6 +827,26 @@ def _(AVAILABLE, live_all, live_from, live_res, live_span, live_warm,
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## The decision the forecast is for
+
+    Slide two asks whether it is still safe to drive over. That is a decision,
+    not a forecast, so it needs a threshold and a margin rather than a point
+    estimate. `models/decision.py` runs each model over the whole trace at full
+    rate and summarises one chosen hour, writing `results/decision.json`. The
+    thinned arrays the panels above use are far too coarse for the r.m.s.\ of a
+    single bursty hour, which is why it is a separate pass.
+
+    The slide figure is drawn by `../plot_decision.py`, a plain script in the
+    deck folder, so it is not repeated here. Run it after re-running
+    `models.decision`.
+    """)
+    return
+
+
+
+@app.cell(hide_code=True)
 def _(AVAILABLE, mo):
     stage_pick = mo.ui.dropdown(
         options={f"{s}. {l}": n for n, s, l in AVAILABLE},
@@ -945,9 +903,8 @@ def _(RES, AVAILABLE, mo):
 
 
 @app.cell
-def _(AVAILABLE, FIGURES, bridge_figure, decision_figure, gp_figure,
-      ladder_figure, os, plt, stage_figure, transformer_figure,
-      volatility_figure):
+def _(AVAILABLE, FIGURES, bridge_figure, gp_figure, ladder_figure, os, plt,
+      stage_figure, transformer_figure, volatility_figure):
     def export(figdir=FIGURES):
         """Write the slide PDFs. Also runs when this file is executed directly."""
         os.makedirs(figdir, exist_ok=True)
@@ -965,7 +922,6 @@ def _(AVAILABLE, FIGURES, bridge_figure, decision_figure, gp_figure,
         written.append(_p)
         for _name, _fn in (("res_transformer", transformer_figure),
                            ("res_gp", gp_figure),
-                           ("res_decision", decision_figure),
                            ("res_bridge", bridge_figure)):
             _f = _fn()
             if _f is not None:
