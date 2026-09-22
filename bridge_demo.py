@@ -5,13 +5,39 @@ app = marimo.App(width="full")
 
 
 @app.cell
-def _():
+async def _():
     import marimo as mo
+    import os as _os
+    import sys as _sys
 
+    # In the browser (the WASM export) there is no repository on disk, so the
+    # local modules, data and stored results come as one zip that
+    # build_site.py places next to the page.
+    WASM = _sys.platform == "emscripten"
+    if WASM:
+        import io as _io
+        import zipfile as _zipfile
+
+        import micropip as _micropip
+        from pyodide.http import pyfetch as _pyfetch
+
+        await _micropip.install(["plotly", "pandas", "scipy", "matplotlib"])
+        _resp = await _pyfetch(str(mo.notebook_location() / "public" / "bundle.zip"))
+        HERE = _os.path.join(_os.getcwd(), "ernsi2026")
+        _zipfile.ZipFile(_io.BytesIO(await _resp.bytes())).extractall(HERE)
+    else:
+        HERE = _os.path.dirname(_os.path.abspath(__file__))
+    if HERE not in _sys.path:
+        _sys.path.insert(0, HERE)
+    return HERE, WASM, mo
+
+
+@app.cell
+def _(HERE):
     import bridge as br
     import bridge_viz as bv
 
-    return br, bv, mo
+    return br, bv
 
 
 @app.cell
@@ -60,10 +86,20 @@ def _(mo):
 
 
 @app.cell
-def _(bv, mo, problem_fig, save):
+def _(WASM, bv, mo, problem_fig, save):
     mo.stop(not save.value)
-    _path = bv.save_html(problem_fig, str(mo.notebook_dir() / "bridge_problem.html"))
-    mo.md(f"Saved `{_path}`: opens in any browser, no internet needed.")
+    if WASM:
+        # No disk to write to in the browser; hand the file over instead.
+        _out = mo.download(
+            data=problem_fig.to_html(include_plotlyjs=True, full_html=True,
+                                     auto_play=False,
+                                     config=dict(displayModeBar=False, responsive=True)),
+            filename="bridge_problem.html", mimetype="text/html",
+            label="Download bridge_problem.html")
+    else:
+        _path = bv.save_html(problem_fig, str(mo.notebook_dir() / "bridge_problem.html"))
+        _out = mo.md(f"Saved `{_path}`: opens in any browser, no internet needed.")
+    _out
     return
 
 
@@ -121,7 +157,7 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(HERE):
     import json
     import os
 
@@ -130,7 +166,6 @@ def _():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    HERE = os.path.dirname(os.path.abspath(__file__))
     RESULTS = os.path.join(HERE, "results")
     FIGURES = os.path.abspath(os.path.join(HERE, "..", "figures"))
 
@@ -149,7 +184,7 @@ def _():
         ("transformer", 8, "Transformer"),
         ("transformer_nightly", 9, "Transformer (nightly)"),
     ]
-    return BASELINES, FIGURES, HERE, RESULTS, STAGES, json, np, os, plt
+    return BASELINES, FIGURES, RESULTS, STAGES, json, np, os, plt
 
 
 @app.cell
@@ -686,11 +721,7 @@ def _(SCREEN, nlpd_panel, plt, running_panel, trace_panel):
 
 
 @app.cell
-def _(HERE, RES, np):
-    import sys
-    if HERE not in sys.path:
-        sys.path.insert(0, HERE)
-
+def _(RES, np):
     from models.base import Protocol, prepare, run_filter
     from models.ar.model import build as build_ar
     from models.tvar.model import build as build_tvar
@@ -955,6 +986,7 @@ def _(decision_figure, show, stage_pick):
 def _(
     AVAILABLE,
     FIGURES,
+    WASM,
     bridge_figure,
     gp_figure,
     ladder_figure,
@@ -996,7 +1028,8 @@ def _(
             written.append(_p)
         return written
 
-    exported = export()
+    # The slide PDFs are only wanted locally, not in the browser.
+    exported = [] if WASM else export()
     return
 
 

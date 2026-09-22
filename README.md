@@ -27,3 +27,13 @@ python -m models.transformer.run --nightly      # the baseline (needs torch)
 python -m models.decision                       # the closing decision slide
 python bridge_demo.py                           # redraw ../figures/res_*.pdf
 ```
+
+## In the browser
+
+`python build_site.py` builds a static copy of the notebook into `site/` that
+runs entirely in the browser (marimo's WASM export). It zips `bridge.py`,
+`bridge_viz.py`, `models/`, `data/` and `results/` into `public/bundle.zip`,
+which the notebook's first cell fetches and unpacks when it runs there. Any
+static host will do; `.github/workflows/pages.yml` publishes it to GitHub
+Pages on every push to `main`. Preview locally with
+`python -m http.server -d site`. Use `--mode edit` to show the code.
