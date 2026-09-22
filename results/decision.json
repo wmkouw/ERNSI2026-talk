@@ -1,8 +1,16 @@
 {
-  "hour": 114.0,
-  "quiet_hour": 116.0,
-  "threshold_mm": 100.0,
+  "hour": 112.0,
+  "later_hour": 114.0,
+  "threshold_mm": 150.0,
   "conditions": {
+    "traffic_veh_per_h": 1492,
+    "wind_m_per_s": 6.2,
+    "deck_temp_c": 7.5,
+    "damaged": true,
+    "damage_from_hour": 109.0,
+    "regime": 2
+  },
+  "later_conditions": {
     "traffic_veh_per_h": 1285,
     "wind_m_per_s": 5.1,
     "deck_temp_c": 7.4,
@@ -10,65 +18,57 @@
     "damage_from_hour": 109.0,
     "regime": 2
   },
-  "quiet_conditions": {
-    "traffic_veh_per_h": 237,
-    "wind_m_per_s": 4.6,
-    "deck_temp_c": 6.8,
-    "damaged": true,
-    "damage_from_hour": 109.0,
-    "regime": 2
-  },
   "realised": {
+    "112": {
+      "rms_mm": 142.1,
+      "peak_mm": 664.3
+    },
     "114": {
       "rms_mm": 65.1,
       "peak_mm": 403.8
-    },
-    "116": {
-      "rms_mm": 8.3,
-      "peak_mm": 33.3
     }
   },
   "models": {
     "ar": {
+      "112": {
+        "mu_mm": 132.0,
+        "sigma_mm": 29.6,
+        "margin_mm": 161.6,
+        "rms_pred_mm": 135.3
+      },
       "114": {
         "mu_mm": 57.6,
         "sigma_mm": 29.5,
         "margin_mm": 87.1,
         "rms_pred_mm": 64.7
-      },
-      "116": {
-        "mu_mm": 7.8,
-        "sigma_mm": 29.4,
-        "margin_mm": 37.1,
-        "rms_pred_mm": 30.4
       }
     },
     "hgf": {
+      "112": {
+        "mu_mm": 140.9,
+        "sigma_mm": 33.1,
+        "margin_mm": 174.1,
+        "rms_pred_mm": 144.8
+      },
       "114": {
         "mu_mm": 70.1,
         "sigma_mm": 20.9,
         "margin_mm": 91.0,
         "rms_pred_mm": 73.2
-      },
-      "116": {
-        "mu_mm": 8.2,
-        "sigma_mm": 2.6,
-        "margin_mm": 10.8,
-        "rms_pred_mm": 8.6
       }
     },
     "bmoe": {
+      "112": {
+        "mu_mm": 125.7,
+        "sigma_mm": 71.2,
+        "margin_mm": 196.9,
+        "rms_pred_mm": 144.5
+      },
       "114": {
         "mu_mm": 51.1,
         "sigma_mm": 40.1,
         "margin_mm": 91.2,
         "rms_pred_mm": 64.9
-      },
-      "116": {
-        "mu_mm": 7.3,
-        "sigma_mm": 4.5,
-        "margin_mm": 11.8,
-        "rms_pred_mm": 8.6
       }
     }
   }

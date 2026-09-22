@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.2"
+__generated_with = "0.24.0"
 app = marimo.App(width="full")
 
 
@@ -17,14 +17,11 @@ def _():
 @app.cell
 def _(mo):
     mo.md(r"""
-    # One bridge, one sensor, many causes
+    # System identification of a research bridge
 
-    A 30 m road bridge carries a single accelerometer. Its signal never sits still:
-    **rush hour** and a **storm** make it loud, a **frozen deck** makes it stiffer,
-    and at some point this week something in the structure **breaks**.
-    Traffic and wind are only partly measured; the bridge's own condition not at all.
+    ## Conditions
 
-    *From the sensor alone: what changed — the load, the weather, or the bridge?*
+    Consider a 30 m road bridge with an accelerometer attached to measure vibrations. It is being excited by traffic (e.g., density increased at rush hour) and weather conditions (e.g., storms, freezing temperatures). These are only partly measured. The bridge's actual condition is not observed directly. Can we predict the vibration response from traffic and weather input signals?
     """)
     return
 
@@ -75,8 +72,8 @@ def _(mo):
     mo.md(r"""
     **Reading the animation.** Time-lapse: one scenario hour is 30 s of 20 Hz
     vibration, so the full week is one hour of data (72 000 samples). The scene
-    shows the inputs (traffic density, wind, deck temperature); top right is what
-    the accelerometer records: the last 10 s, and its spectrum over the last 60 s
+    shows the inputs (traffic density, wind, deck temperature), while the top right plot shows the
+    accelerometer recordings over the last 10 s. Below that is its spectrum over the last 60 s
     against the reference modes. The strips below trace the week; the future is
     greyed out.
     """)
@@ -107,16 +104,18 @@ def _(mo):
     mo.md(r"""
     ---
 
-    # Part two --- does the model forecast?
+    ## Fitting models
 
-    One-step-ahead forecasts from the six models in `models/`, on the same
-    bridge trace the animation above plays back. Every model predicted each
-    sample before it saw it, on the same window, with hyperparameters chosen on
-    day one only.
+    Pick a model and a window. The model runs live on the full-rate signal,
+    with the same settings as the stored run, and predicts every sample before
+    it sees it. Left: the measured acceleration against the forecast band.
+    Right: the width of that band against the true excitation. Drag $t$ to
+    draw the forecast up to that moment; the scores in the title cover the
+    same stretch.
 
-    The plotting code below is meant to be edited. Change `STYLE`, change a
-    `*_figure` function, and every panel re-renders. Running this file as a
-    script (`python bridge_demo.py`) writes the slide PDFs into `../figures/`.
+    The filter is warmed up for the chosen number of hours before the window
+    rather than run from the start of the trace, so this is a preview rather
+    than the scored run.
     """)
     return
 
@@ -170,7 +169,7 @@ def _(BASELINES, RESULTS, STAGES, json, np, os):
     HAVE_BASE = [(n, s, l) for n, s, l in BASELINES if n in RES]
     PREV = {n: (AVAILABLE[i - 1][0] if i else None)
             for i, (n, _, _) in enumerate(AVAILABLE)}
-    return AVAILABLE, HAVE_BASE, PREV, RES, load
+    return AVAILABLE, HAVE_BASE, RES
 
 
 @app.cell
@@ -210,6 +209,10 @@ def _():
     # the pairwise comparison can be made, everything older is a ghost.
     FADE = [(1.00, 1.00), (0.55, 0.75), (0.20, 0.62), (0.12, 0.55)]
 
+    # On screen every figure is stretched to the width of the text, so all of
+    # them share one width in inches and the fonts come out the same size.
+    SCREEN = dict(STYLE, figsize=(11.0, 2.8))
+
     def fade(age):
         """(alpha, line-width factor) for a stage `age` steps in the past."""
         return FADE[min(age, len(FADE) - 1)]
@@ -235,11 +238,12 @@ def _():
             "savefig.pad_inches": 0.02,
             "pdf.fonttype": 42,
         })
-    return FADE, STYLE, apply_style, fade
+
+    return SCREEN, STYLE, apply_style, fade
 
 
 @app.cell
-def _(STYLE, apply_style, plt):
+def _(STYLE, apply_style, mo, plt):
     apply_style(STYLE)
 
     def tidy(ax, style=STYLE, grid_axis="y"):
@@ -250,7 +254,22 @@ def _(STYLE, apply_style, plt):
             ax.spines[side].set_visible(False)
         ax.tick_params(length=2.5, width=0.6)
         return ax
-    return (tidy,)
+
+    def show(fig, style=STYLE):
+        """Display a figure at the full width of the text column."""
+        if fig is None:
+            return None
+        import base64
+        import io
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=style["dpi"])
+        plt.close(fig)
+        # Inline, so a fast-moving slider never points at a stale image file.
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        return mo.Html(f'<img src="data:image/png;base64,{b64}" '
+                       f'style="width:100%;height:auto;display:block">')
+
+    return show, tidy
 
 
 @app.cell
@@ -272,7 +291,7 @@ def _(AVAILABLE, RES, STYLE, fade, np, plt, tidy):
     def stage_color(name, style=STYLE):
         return style["stage"][stage_index(name) % len(style["stage"])]
 
-    def running_panel(ax, name, style=STYLE):
+    def running_panel(ax, name, style=STYLE, note=True):
         """Running NLPD over the scored window, this stage on top of its past.
 
         Every stage up to this one is drawn, each in its own colour, each
@@ -296,8 +315,10 @@ def _(AVAILABLE, RES, STYLE, fade, np, plt, tidy):
             handles, labels = ax.get_legend_handles_labels()
             ax.legend(handles[::-1], labels[::-1], frameon=False, loc="best",
                       handlelength=1.4, borderpad=0.2)
-        ax.annotate("lower is better", (0.985, 0.04), xycoords="axes fraction",
-                    ha="right", fontsize=style["fs"] - 2, color=style["muted"])
+        if note:
+            ax.annotate("lower is better", (0.985, 0.04),
+                        xycoords="axes fraction", ha="right",
+                        fontsize=style["fs"] - 2, color=style["muted"])
         tidy(ax)
         return ax
 
@@ -338,8 +359,8 @@ def _(AVAILABLE, RES, STYLE, fade, np, plt, tidy):
         running_panel(axes[0], name, style)
         nlpd_panel(axes[1], name, style)
         return fig
-    return (BAR_YLIM, LADDER, RUN_YLIM, nlpd_panel, running_panel,
-            stage_color, stage_figure, stage_index)
+
+    return LADDER, nlpd_panel, running_panel, stage_figure
 
 
 @app.cell
@@ -383,11 +404,12 @@ def _(AVAILABLE, RES, STYLE, np, plt, tidy):
             ax.set_xticklabels(labels, rotation=35, ha="right")
             tidy(ax)
         return fig
+
     return (ladder_figure,)
 
 
 @app.cell
-def _(AVAILABLE, HAVE_BASE, LADDER, RES, STYLE, np, plt, tidy):
+def _(HAVE_BASE, LADDER, RES, STYLE, np, plt, tidy):
     def _day_nlpd(name, day_hours=24.0):
         """Mean NLPD per scenario day, from the stored two-hour blocks."""
         npz = RES[name][0]
@@ -513,8 +535,8 @@ def _(AVAILABLE, HAVE_BASE, LADDER, RES, STYLE, np, plt, tidy):
                   fontsize=style["fs"] - 1.5)
         tidy(ax)
         return fig
-    return gp_figure, transformer_figure
 
+    return gp_figure, transformer_figure
 
 
 @app.cell
@@ -583,24 +605,24 @@ def _(HERE, STYLE, np, os, plt, tidy):
             ax.set_xlim(0, 120)
             ax.set_xticks([0, 24, 48, 72, 96, 120])
         return fig
+
     return (bridge_figure,)
 
 
 @app.cell
-def _(bridge_figure):
-    bridge_figure()
+def _(SCREEN, bridge_figure, show):
+    show(bridge_figure(SCREEN))
     return
 
 
-
 @app.cell
-def _(RES, STYLE, np, plt, tidy):
-    def trace_figure(name, hour_from=95.0, hour_to=98.0, style=STYLE):
-        """A zoom on the forecast and its band, for a chosen stretch."""
+def _(RES, STYLE, plt, tidy):
+    def trace_panel(ax, name, hour_from=95.0, hour_to=98.0, style=STYLE,
+                    legend_loc="upper left"):
+        """The forecast and its band against the measurement, over a stretch."""
         npz, meta = RES[name]
         h = npz["thin_index"] / 600.0
         sel = (h >= hour_from) & (h <= hour_to)
-        fig, ax = plt.subplots(figsize=(style["figsize"][0], 1.9))
         ax.fill_between(h[sel],
                         (npz["thin_mean"][sel] - 2 * npz["thin_std"][sel]) * 1e3,
                         (npz["thin_mean"][sel] + 2 * npz["thin_std"][sel]) * 1e3,
@@ -610,8 +632,14 @@ def _(RES, STYLE, np, plt, tidy):
                 zorder=3, label="measured")
         ax.set_xlabel("scenario hour")
         ax.set_ylabel(r"acceleration  [mm/s$^2$]")
-        ax.legend(frameon=False, loc="upper left", ncols=2, handlelength=1.4)
+        ax.legend(frameon=False, loc=legend_loc, ncols=2, handlelength=1.4)
         tidy(ax, grid_axis="both")
+        return ax
+
+    def trace_figure(name, hour_from=95.0, hour_to=98.0, style=STYLE):
+        """A zoom on the forecast and its band, for a chosen stretch."""
+        fig, ax = plt.subplots(figsize=(style["figsize"][0], 1.9))
+        trace_panel(ax, name, hour_from, hour_to, style)
         return fig
 
     def volatility_figure(name="hgf", style=STYLE):
@@ -630,29 +658,35 @@ def _(RES, STYLE, np, plt, tidy):
         ax.legend(frameon=False, loc="best", handlelength=1.4)
         tidy(ax, grid_axis="both")
         return fig
-    return trace_figure, volatility_figure
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Live: run a model on a stretch of the signal
-
-    The cells below import the models themselves rather than reading the stored
-    predictions, so you can point one at any window and look at the signal
-    against its forecast at full rate. Hyperparameters come from
-    `results/<stage>.json`, so a live run matches the stored one.
-
-    The filter is warmed up for `warmup` hours before the window, not from the
-    start of the trace, so this is a preview rather than the scored run. A
-    couple of hours is plenty for everything except the drift precision in
-    stages 3 and 4, which takes longer to settle.
-    """)
-    return
+    return trace_panel, volatility_figure
 
 
 @app.cell
-def _(HERE, RES, np, os):
+def _(SCREEN, nlpd_panel, plt, running_panel, trace_panel):
+    def decision_figure(name, hour_from=95.0, hour_to=98.0, style=SCREEN):
+        """Running NLPD, mean NLPD and the forecast itself, in one row.
+
+        The default stretch is where the deck freezes again, at hour 96.1.
+        """
+        fig, axes = plt.subplots(1, 3, figsize=style["figsize"],
+                                 gridspec_kw=dict(width_ratios=[1.25, 1.1, 1.25],
+                                                  wspace=0.34))
+        running_panel(axes[0], name, style, note=False)
+        nlpd_panel(axes[1], name, style)
+        axes[1].tick_params(axis="x", labelrotation=35)
+        axes[1].annotate("lower is better", (0.03, 0.04),
+                         xycoords="axes fraction", fontsize=style["fs"] - 2,
+                         color=style["muted"])
+        trace_panel(axes[2], name, hour_from, hour_to, style,
+                    legend_loc="upper right")
+        return fig
+
+    return (decision_figure,)
+
+
+@app.cell
+def _(HERE, RES, np):
     import sys
     if HERE not in sys.path:
         sys.path.insert(0, HERE)
@@ -705,61 +739,104 @@ def _(HERE, RES, np, os):
             nlpd=float(-np.mean(out.logpdf[keep])),
             cfg=cfg, label=RES[name][1]["label"] if name in RES else name,
         )
-    return (BUILDERS, PER_HOUR, PROTOCOL, TRACE, XALL, YALL, IDXALL,
-            hyper_for, run_window, sys)
+
+    return TRACE, run_window
 
 
 @app.cell
-def _(STYLE, np, plt, tidy):
-    def signal_figure(res, style=STYLE, band=2.0, show_excitation=True):
-        """Top: the signal and the forecast band. Bottom: how wide the model
-        thinks the band should be, against the simulator's excitation."""
-        rows = 2 if (show_excitation and res["exc"] is not None) else 1
-        fig, axes = plt.subplots(rows, 1, sharex=True,
-                                 figsize=(style["figsize"][0], 2.0 + 1.5 * rows),
-                                 gridspec_kw=dict(hspace=0.16,
-                                                  height_ratios=[2, 1][:rows]))
+def _(SCREEN, np, plt, tidy):
+    from matplotlib.ticker import MaxNLocator
+
+    def _now_line(ax, upto, h, style, ymax=0.88):
+        """A dashed line at t, while t is still inside the window. It stops
+        short of the top so it does not run through the legend."""
+        if upto < h[-1]:
+            ax.axvline(upto, ymax=ymax, color=style["muted"], lw=0.9,
+                       ls=(0, (3, 2)), zorder=5)
+
+    def _xframe(ax, h):
+        pad = 0.02 * (h[-1] - h[0])
+        ax.set_xlim(h[0] - pad, h[-1] + pad)
+        ax.xaxis.set_major_locator(MaxNLocator(5))
+        ax.set_xlabel("scenario hour")
+
+    def _log_range(*arrays):
+        v = np.concatenate([np.ravel(a) for a in arrays]) * 1e3
+        v = v[np.isfinite(v) & (v > 0)]
+        return float(v.min()), float(v.max())
+
+    def signal_figure(res, upto=None, style=SCREEN, band=2.0,
+                      show_excitation=True):
+        """Left: the signal and the forecast band. Right: how wide the model
+        thinks the band should be, against the simulator's excitation.
+
+        The forecast is drawn up to hour `upto` and the measurement throughout.
+        Both axes are fixed by the whole window, so they hold still while
+        `upto` moves.
+        """
+        h = res["hour"]
+        upto = float(h[-1]) if upto is None else float(upto)
+        k = h <= upto
+        cols = 2 if (show_excitation and res["exc"] is not None) else 1
+        fig, axes = plt.subplots(1, cols, figsize=(style["figsize"][0], 2.9),
+                                 gridspec_kw=dict(wspace=0.22,
+                                                  width_ratios=[1.5, 1][:cols]))
         axes = np.atleast_1d(axes)
 
+        y = res["y"] * 1e3
+        lo = (res["mean"] - band * res["std"]) * 1e3
+        hi = (res["mean"] + band * res["std"]) * 1e3
+
         ax = axes[0]
-        ax.fill_between(res["hour"], (res["mean"] - band * res["std"]) * 1e3,
-                        (res["mean"] + band * res["std"]) * 1e3,
-                        color=style["now"], alpha=0.20, lw=0, zorder=2,
-                        label=rf"$\pm{band:g}\sigma$ forecast")
-        ax.plot(res["hour"], res["y"] * 1e3, color=style["ink"], lw=0.6,
-                zorder=3, label="measured")
-        ax.plot(res["hour"], res["mean"] * 1e3, color=style["now"], lw=0.8,
+        ax.fill_between(h[k], lo[k], hi[k], color=style["now"], alpha=0.20,
+                        lw=0, zorder=2, label=rf"$\pm{band:g}\sigma$ forecast")
+        ax.plot(h, y, color=style["ink"], lw=0.6, zorder=3, label="measured")
+        ax.plot(h[k], res["mean"][k] * 1e3, color=style["now"], lw=0.8,
                 zorder=4, label="one-step mean")
+        y0, y1 = min(lo.min(), y.min()), max(hi.max(), y.max())
+        ax.set_ylim(y0 - 0.30 * (y1 - y0), y1 + 0.30 * (y1 - y0))  # legend room
         ax.set_ylabel(r"acceleration  [mm/s$^2$]")
-        ax.margins(y=0.30)              # headroom, so the legend clears the data
         ax.legend(frameon=False, ncols=3, loc="upper left", handlelength=1.4)
-        ax.set_title(f"{res['label']}   ---   RMSE {res['rmse']*1e3:.1f} mm/s$^2$, "
-                     f"NLPD {res['nlpd']:+.2f} nats on this window",
-                     loc="left", color=style["muted"])
+        if k.any():
+            rmse = float(np.sqrt(np.mean((res["y"][k] - res["mean"][k]) ** 2)))
+            nlpd = float(-np.mean(res["logpdf"][k]))
+            where = ("on this window" if upto >= h[-1]
+                     else f"up to hour {upto:.2f}")
+            score = (f"RMSE {rmse * 1e3:.1f} mm/s$^2$, "
+                     f"NLPD {nlpd:+.2f} nats {where}")
+        else:
+            score = "no forecast yet"
+        ax.set_title(f"{res['label']}  —  {score}", loc="left",
+                     color=style["muted"])
         tidy(ax, grid_axis="both")
 
-        if rows == 2:
+        if cols == 2:
             ax = axes[1]
-            ax.plot(res["hour"], res["std"] * 1e3, color=style["now"],
+            ax.plot(h[k], res["std"][k] * 1e3, color=style["now"],
                     lw=style["lw"], zorder=3, label="predictive s.d.")
-            ax.plot(res["hour"], res["exc"] * 1e3, color=style["deep"],
+            ax.plot(h, res["exc"] * 1e3, color=style["deep"],
                     lw=1.0, zorder=2, label="true excitation r.m.s.")
             ax.set_yscale("log")
-            _top = float(np.nanmax(np.concatenate([res["std"], res["exc"]]))) * 1e3
-            ax.set_ylim(top=_top * 5.0)
+            bot, top = _log_range(res["std"], res["exc"])
+            ax.set_ylim(bot * 0.7, top * 5.0)
             ax.set_ylabel(r"[mm/s$^2$]")
             ax.legend(frameon=False, ncols=2, loc="upper left", handlelength=1.4)
             tidy(ax, grid_axis="both")
 
-        axes[-1].set_xlabel("scenario hour")
+        for ax in axes:
+            _xframe(ax, h)
+            _now_line(ax, upto, h, style)
         return fig
 
-    def spread_figure(results, truth_hour=None, truth=None, style=STYLE):
-        """Every model's predictive s.d. on one window.
+    def spread_figure(results, truth_hour=None, truth=None, upto=None,
+                      style=SCREEN):
+        """Every model's predictive s.d. on one window, up to hour `upto`.
 
         The stages keep the ramp they have everywhere else in the deck; the
         simulator's excitation is drawn in the contrast hue.
         """
+        h = results[0]["hour"]
+        upto = float(h[-1]) if upto is None else float(upto)
         fig, ax = plt.subplots(figsize=(style["figsize"][0], 2.6))
         shades = [style["stage"][i % len(style["stage"])]
                   for i in range(len(results))]
@@ -769,17 +846,21 @@ def _(STYLE, np, plt, tidy):
                     zorder=2, label="true excitation r.m.s.")
             stack.append(truth)
         for c, res in zip(shades, results):
-            ax.plot(res["hour"], res["std"] * 1e3, color=c, lw=1.3, zorder=3,
-                    label=res["label"])
+            k = res["hour"] <= upto
+            ax.plot(res["hour"][k], res["std"][k] * 1e3, color=c, lw=1.3,
+                    zorder=3, label=res["label"])
             stack.append(res["std"])
         ax.set_yscale("log")
-        ax.set_ylim(top=float(np.nanmax(np.concatenate(stack))) * 1e3 * 12.0)
-        ax.set_xlabel("scenario hour")
+        bot, top = _log_range(*stack)
+        ax.set_ylim(bot * 0.7, top * 12.0)
         ax.set_ylabel(r"predictive s.d.  [mm/s$^2$]")
         ax.legend(frameon=False, ncols=4, loc="upper left", handlelength=1.4,
                   fontsize=style["fs"] - 1.5, columnspacing=1.2)
         tidy(ax, grid_axis="both")
+        _xframe(ax, h)
+        _now_line(ax, upto, h, style, ymax=0.78)
         return fig
+
     return signal_figure, spread_figure
 
 
@@ -801,49 +882,56 @@ def _(AVAILABLE, mo):
 
 
 @app.cell
-def _(live_from, live_span, live_stage, live_warm, run_window, signal_figure):
+def _(live_from, live_span, live_stage, live_warm, run_window):
     live_res = run_window(live_stage.value, live_from.value,
                           live_from.value + live_span.value,
                           warmup=live_warm.value)
-    signal_figure(live_res)
     return (live_res,)
 
 
+@app.cell(hide_code=True)
+def _(TRACE, live_from, live_span, mo):
+    # Depends on the window only, so switching model keeps t where it is.
+    _h0 = round(float(live_from.value), 2)
+    _h1 = round(min(_h0 + float(live_span.value), float(TRACE.hour[-1])), 2)
+    live_t = mo.ui.slider(start=_h0, stop=_h1, step=0.01, value=_h1,
+                          label="t [h]", show_value=True, full_width=True)
+    live_t
+    return (live_t,)
+
+
 @app.cell
-def _(AVAILABLE, live_all, live_from, live_res, live_span, live_warm,
-      run_window, spread_figure):
-    # Guarded by the checkbox: six filters over the same window is a few
-    # seconds, and you do not want that on every slider nudge.
-    if live_all.value:
-        _runs = [run_window(n, live_from.value,
-                            live_from.value + live_span.value,
-                            warmup=live_warm.value)
-                 for n, _, _ in AVAILABLE]
-        _fig = spread_figure(_runs, live_res["hour"], live_res["exc"])
-    else:
-        _fig = None
-    _fig
+def _(live_res, live_t, show, signal_figure):
+    show(signal_figure(live_res, upto=live_t.value))
+    return
+
+
+@app.cell
+def _(AVAILABLE, live_all, live_from, live_span, live_warm, run_window):
+    # Guarded by the checkbox: six filters over the same window take a few
+    # seconds. Moving t only redraws; it does not rerun them.
+    live_runs = ([run_window(n, live_from.value,
+                             live_from.value + live_span.value,
+                             warmup=live_warm.value)
+                  for n, _, _ in AVAILABLE] if live_all.value else None)
+    return (live_runs,)
+
+
+@app.cell
+def _(live_res, live_runs, live_t, show, spread_figure):
+    (show(spread_figure(live_runs, live_res["hour"], live_res["exc"],
+                        upto=live_t.value)) if live_runs else None)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## The decision the forecast is for
+    ## Model comparison
 
-    Slide two asks whether it is still safe to drive over. That is a decision,
-    not a forecast, so it needs a threshold and a margin rather than a point
-    estimate. `models/decision.py` runs each model over the whole trace at full
-    rate and summarises one chosen hour, writing `results/decision.json`. The
-    thinned arrays the panels above use are far too coarse for the r.m.s.\ of a
-    single bursty hour, which is why it is a separate pass.
-
-    The slide figure is drawn by `../plot_decision.py`, a plain script in the
-    deck folder, so it is not repeated here. Run it after re-running
-    `models.decision`.
+    We plot the performance of several models in the same figure. Left is the running negative log-predictive density (NLPD) over the week, and middle is the NLPD per stage (lower is better for both). The right figure is the one-step forecast with its $\pm 2\sigma$ band from hour 95 to 98, as the deck freezes early on Friday.
     """)
     return
-
 
 
 @app.cell(hide_code=True)
@@ -858,53 +946,24 @@ def _(AVAILABLE, mo):
 
 
 @app.cell
-def _(stage_figure, stage_pick):
-    stage_figure(stage_pick.value)
+def _(decision_figure, show, stage_pick):
+    show(decision_figure(stage_pick.value))
     return
 
 
 @app.cell
-def _(ladder_figure):
-    ladder_figure()
-    return
-
-
-@app.cell
-def _(transformer_figure):
-    transformer_figure()
-    return
-
-
-@app.cell
-def _(gp_figure):
-    gp_figure()
-    return
-
-
-@app.cell
-def _(stage_pick, trace_figure):
-    # The damage step lands at scenario hour 96.1; the deck freezes earlier.
-    trace_figure(stage_pick.value, 95.0, 98.0)
-    return
-
-
-@app.cell(hide_code=True)
-def _(RES, AVAILABLE, mo):
-    _rows = "\n".join(
-        f"| {s} | {l} | {RES[n][1]['metrics']['rmse'] * 1e3:.2f} | "
-        f"{RES[n][1]['metrics']['nlpd']:+.3f} | "
-        f"{RES[n][1]['metrics']['coverage90']:.3f} |"
-        for n, s, l in AVAILABLE)
-    mo.md(
-        "| stage | model | RMSE [mm/s²] | NLPD [nats] | 90% coverage |\n"
-        "|---|---|---|---|---|\n" + _rows
-    )
-    return
-
-
-@app.cell
-def _(AVAILABLE, FIGURES, bridge_figure, gp_figure, ladder_figure, os, plt,
-      stage_figure, transformer_figure, volatility_figure):
+def _(
+    AVAILABLE,
+    FIGURES,
+    bridge_figure,
+    gp_figure,
+    ladder_figure,
+    os,
+    plt,
+    stage_figure,
+    transformer_figure,
+    volatility_figure,
+):
     def export(figdir=FIGURES):
         """Write the slide PDFs. Also runs when this file is executed directly."""
         os.makedirs(figdir, exist_ok=True)
@@ -938,12 +997,6 @@ def _(AVAILABLE, FIGURES, bridge_figure, gp_figure, ladder_figure, os, plt,
         return written
 
     exported = export()
-    return export, exported
-
-
-@app.cell(hide_code=True)
-def _(exported, mo, os):
-    mo.md("Wrote:\n\n" + "\n".join(f"- `{os.path.basename(p)}`" for p in exported))
     return
 
 

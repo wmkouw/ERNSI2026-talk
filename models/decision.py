@@ -41,11 +41,14 @@ from .hgf.model import build as build_hgf
 from .bmoe.model import build as build_bmoe
 
 
-# Friday evening. The deck cracked at 13:00, five hours earlier, and the
-# evening peak is the first ordinary loading it has seen since.
-HOUR = 114.0
-THRESHOLD_MM = 100.0        # illustrative serviceability limit, r.m.s. mm/s^2
-QUIET_HOUR = 116.0          # the same evening, once the traffic has gone
+# Friday afternoon, three hours after the deck cracked, at the peak of the
+# working day. Chosen because the decision flips inside the margin there. The
+# predicted mean clears the limit and the mean plus one standard deviation does
+# not. LATER_HOUR is the same evening, once the loading has eased, where the
+# whole margin clears.
+HOUR = 112.0
+THRESHOLD_MM = 150.0        # illustrative serviceability limit, r.m.s. mm/s^2
+LATER_HOUR = 114.0          # two hours on, with the loading eased
 
 MODELS = [("ar", build_ar), ("hgf", build_hgf), ("bmoe", build_bmoe)]
 
@@ -99,7 +102,7 @@ def main(protocol=None, verbose=True):
     protocol = protocol or Protocol()
     trace, X, y, idx = prepare(protocol)
     hours = trace.hour[idx]
-    windows = (HOUR, QUIET_HOUR)
+    windows = (HOUR, LATER_HOUR)
 
     realised = {}
     for h in windows:
@@ -108,9 +111,9 @@ def main(protocol=None, verbose=True):
             rms_mm=round(float(np.sqrt(np.mean(y[s] ** 2)) * 1e3), 1),
             peak_mm=round(float(np.max(np.abs(y[s])) * 1e3), 1))
 
-    out = dict(hour=HOUR, quiet_hour=QUIET_HOUR, threshold_mm=THRESHOLD_MM,
+    out = dict(hour=HOUR, later_hour=LATER_HOUR, threshold_mm=THRESHOLD_MM,
                conditions=conditions(protocol.trace, HOUR),
-               quiet_conditions=conditions(protocol.trace, QUIET_HOUR),
+               later_conditions=conditions(protocol.trace, LATER_HOUR),
                realised=realised, models={})
     for name, build in MODELS:
         out["models"][name] = band(name, build, X, y, idx, hours, windows)
